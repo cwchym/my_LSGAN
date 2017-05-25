@@ -1,6 +1,6 @@
 rng('shuffle');
 
-if 0
+if 1
     %The architecture of the generator network;
     generator.layers = {
         struct('type', 'convolution', 'outputMaps', 512, 'kernels', 4, 'actFun', 'ReLU','stride', 1,'padding',0);
@@ -11,11 +11,12 @@ if 0
         struct('type', 'output','padding',1);
     };
     generator.batchSize = 50;
-    generator.lr = 0.0025;
+    generator.lr = 1.0e-3;
     generator.momentum = 0.999;
     generator.momentum2 = 0.9;
     generator.BNlr = 1.0e-5;
     generator.weight_decay = 1e-5;
+    generator.t = 0;
 
     %The architecture of the discriminator network;
     discriminator.layers = {
@@ -33,6 +34,7 @@ if 0
     discriminator.momentum2 = 0.9;
     discriminator.BNlr = 1.0e-5;
     discriminator.weight_decay = 1e-5;
+    discriminator.t = 0;
 
     %get batch of data;
 
@@ -116,8 +118,10 @@ for x=1:epoch
 
                 discriminator = myDiscriminator(discriminator,batch,'forward','true');
                 d_Loss_real = discriminator.layers{6}.output;
-                d_Loss_real_tmp = ((-1).*(d_Loss_real).^(-1))./50;% + (0.1).*(1-d_Loss_real).^(-1))./ 50;
-                tmp = log(d_Loss_real);
+                %d_Loss_real_tmp = ((-1).*(d_Loss_real).^(-1))./50;% + (0.1).*(1-d_Loss_real).^(-1))./ 50;
+                %tmp = log(d_Loss_real);
+                d_Loss_real_tmp = (d_Loss_real-1)./50;
+                tmp = (0.5).*(d_Loss_real-1).^2;
                 Loss_D(end + 1,1) = mean(tmp(:));
                 
                 discriminator = myDiscriminator(discriminator,d_Loss_real_tmp,'backward','true');
@@ -125,21 +129,24 @@ for x=1:epoch
 
                 discriminator = myDiscriminator(discriminator,gen_output,'forward','true');
                 d_Loss_fake = discriminator.layers{6}.output;
-                d_Loss_fake_tmp = ((1-d_Loss_fake).^(-1))./50;     
-                tmp = log(1-d_Loss_fake);
+                %d_Loss_fake_tmp = ((1-d_Loss_fake).^(-1))./50;     
+                %tmp = log(1-d_Loss_fake);
+                d_Loss_fake_tmp = (d_Loss_fake)./50;
+                tmp = (0.5).*(d_Loss_fake).^2;
                 Loss_G(end + 1,1) = mean(tmp(:));
                                 
                 discriminator = myDiscriminator(discriminator,d_Loss_fake_tmp,'backward','true');
 
-                tmp = log(d_Loss_real)+log(1-d_Loss_fake);
+                %tmp = log(d_Loss_real)+log(1-d_Loss_fake);
+                tmp = (0.5).*(d_Loss_real-1).^2 + (0.5).*(d_Loss_fake).^2;
                 Loss(end + 1,1) = mean(tmp(:));
                 
-                if mean(d_Loss_fake) <=0.2 && mean(d_Loss_real) >= 0.8
-                    fprintf('d_Loss_real is bigger than 0.85!!\n');
-                    fprintf('d_Loss_real is %f and d_Loss_fake is %f\n',...
-                        mean(d_Loss_real),mean(d_Loss_fake));
-                    break;
-                end
+%                 if mean(d_Loss_fake) <=0.2 && mean(d_Loss_real) >= 0.8
+%                     fprintf('d_Loss_real is bigger than 0.85!!\n');
+%                     fprintf('d_Loss_real is %f and d_Loss_fake is %f\n',...
+%                         mean(d_Loss_real),mean(d_Loss_fake));
+%                     break;
+%                 end
             end
             
             if isnan(mean(d_Loss_real))||isnan(mean(d_Loss_fake))
@@ -162,13 +169,14 @@ for x=1:epoch
 
         discriminator = myDiscriminator(discriminator,gen_output_2,'forward', 'false');
         d_Loss_fake = discriminator.layers{6}.output;
-        tmp = log(1-d_Loss_fake);
+        %tmp = log(1-d_Loss_fake);
+        tmp = (0.5).*(d_Loss_fake-1).^2;
         Loss_G(end + 1,1)=mean(tmp(:));
 
-        d_gen_Loss_tmp = (-1.*(1-d_Loss_fake).^(-1))./50;
-        d_gen_Loss = d_gen_Loss_tmp;
+        %d_gen_Loss_tmp = (-1.*(1-d_Loss_fake).^(-1))./50;
+        d_gen_Loss_tmp = (d_Loss_fake-1)./50;
         
-        discriminator = myDiscriminator(discriminator,d_gen_Loss,'backward','false');
+        discriminator = myDiscriminator(discriminator,d_gen_Loss_tmp,'backward','false');
         gen_Loss = discriminator.layers{1}.dinput;
 
         generator = myGenerator(generator,gen_Loss,'backward');

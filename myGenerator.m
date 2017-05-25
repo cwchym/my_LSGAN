@@ -237,20 +237,20 @@ global kConv_backward kConv_forward kConv_forward_c kConv_weight kConv_weight_c 
         end
         
         %ascending the discriminator loss
+        net.t=net.t+1;
         momentum = net.momentum;
         momentum2 = net.momentum2;
-        lr = net.lr;
+        lr = net.lr * sqrt(1-momentum^net.t)/(1-momentum2^net.t);
         BN_lr = net.BNlr;
         for i=1:(numel(net.layers)-1)
-%              net.layers{i}.histdw = momentum * net.layers{i}.histdw + (1-momentum).*net.layers{i}.dw.^2;
-%              net.layers{i}.w = net.layers{i}.w - lr.*(net.layers{i}.dw)./(sqrt(net.layers{i}.histdw)+1.0e-8);
+            %ascending the discriminator loss
             net.layers{i}.histdw2 = momentum2 .* net.layers{i}.histdw2 + (1-momentum2).*net.layers{i}.dw;
             net.layers{i}.histdw = momentum .* net.layers{i}.histdw + (1-momentum).*(net.layers{i}.dw.^2);
             net.layers{i}.w = net.layers{i}.w - lr.*(net.layers{i}.histdw2)./(sqrt(net.layers{i}.histdw)+1.0e-8);
             %net.layers{i}.w = net.layers{i}.w - lr.*(net.layers{i}.dw)./(sqrt(net.layers{i}.histdw)+1.0e-8);
-            
+
             net.layers{i}.histdb2 = momentum2 .* net.layers{i}.histdb2 + (1-momentum2).*net.layers{i}.db;
-            net.layers{i}.histdb = momentum .* net.layers{i}.histdb + (1-momentum).*(net.layers{i}.db.^2);
+            net.layers{i}.histdb = momentum .* net.layers{i}.histdb + (1-momentum).*(net.layers{i}.db.^2);         
             net.layers{i}.b = net.layers{i}.b - lr.*(net.layers{i}.histdb2)./(sqrt(net.layers{i}.histdb)+1.0e-8);
             %net.layers{i}.b = net.layers{i}.b - lr.*(net.layers{i}.db)./(sqrt(net.layers{i}.histdb)+1.0e-8);
             
@@ -260,7 +260,6 @@ global kConv_backward kConv_forward kConv_forward_c kConv_weight kConv_weight_c 
             end
         end
         
-        %net = myClipW(net,net.c);
         
         fprintf('finished a gradient calculate procedure in generator %s\n',datestr(now,13));
     end
